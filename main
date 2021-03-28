@@ -1,100 +1,150 @@
 /*
-  Laser Tower for the CAT - LA FABRIQUE DIY
-  Pseudo-randomly moves a servo tower (on X and Y axis) and lights up a laser.
-  x_servo is attached to pin 6 and moves in the X plan 
-  y_servo is attached to pin 9 and moves in the Y plan 
-  Laser is on pin 13
-  HOW IT WORKS : 
-  The program randomly choose a new position for the laser inside a square you can define below. 
-  It checks the new position is different from the old one of at least "minimal_movement".
-  It moves the tower to the new position and stays still for a time between min_freeze and max_freeze 
-  (this aims to reproduce the behaviour of an insect landing somewhere for a bit and then flying off, 
-  that's the variable you need to increase if your cat is fat).
-  Ans starts the process over and over again. 
-  
-  Created 30 Sep 2016 by Lucas Berbesson
+  Cat laser tower - original idea from http://www.lafabriquediy.com/tutoriel/tour-laser-pour-chat-259/
+  Created by Anton Pedersen 2017-07-23
 */
-
 
 #include <Servo.h>
 
-/* YOU CAN CUSTOM THESE VARIABLES IF YOU WANT TO ALTER THE TOWER BEHAVIOUR */
+// Instantiating two servos
+Servo x_servo;
+Servo y_servo;
 
-// X servo angle will stay in [min_x, max_x] range
-// Y servo angle will stay in [min_y, max_y] range
-// to be ajsuted to the size of your living room
+//Variables
+bool debug = true;
+float min_x = 70; //right
+float max_x = 110; //left
+float min_y = 0; //min angle
+float max_y = 45; //max-angle
+int min_freeze = 2000; //min time (ms) for laser to be still
+int max_freeze = 5000; //max time (ms) for laser to be still
+int movement_time = 1000; //total movement time (ms)
+int movement_steps = 10; //number of steps to move during movement_time
+float min_movement = 10; //Minimal angle movment for x and y servo
 
-float min_x = 5;
-float max_x = 50;
-float min_y = 5;
-float max_y = 35;
-int min_freeze = 200;
-int max_freeze = 3000;
-float minimal_movement = 5;
+int x_pos = 90; //start position for x
+int y_pos = 20; //start position for y
 
-/* YOU SHOULD NOT HAVE TO MODIFY THE CODE BELOW THIS LINE */
-
-// finding center of square for starting point
-int random_delay;
-float x_position = min_x + (max_x - min_x)/2;
-float y_position = min_y + (max_y - min_y)/2; 
-float x_old_position = x_position;
-float y_old_position = y_position;
-float x_new_position;
-float y_new_position;
+int rand_delay;
+int movement_delay;
+float x_old_pos = x_pos;
+float y_old_pos = y_pos;
+float x_new_pos;
+float y_new_pos;
 float x_speed;
 float y_speed;
-int movement_time;
 
-
-// Instantiating two servos
-Servo x_servo;  
-Servo y_servo;
-int pos = 0;
-
+//Runs on start
 void setup() {
-  y_servo.attach(6);  // attaches the y servo on pin 6 to the servo object
-  x_servo.attach(9);  // attaches the x servo on pin 9 to the servo object
+
+  x_servo.attach(6);  // attaches the x servo on pin 6 to the servo object
+  y_servo.attach(9);  // attaches the y servo on pin 9 to the servo object
+
+  //Start laser
   pinMode (13, OUTPUT);
   digitalWrite (13, HIGH);  // switch on  the laser
-  
-  //Place the servos in the center at the beginning 
-  y_servo.write(y_position); 
-  x_servo.write(x_position); 
+  //digitalWrite (13, LOW);  // switch off  the laser
 
+  //Set servo start-pos
+  x_servo.write(x_pos);
+  y_servo.write(y_pos);
 }
 
+//Runs continuously after setup() is done
 void loop() {
-  
 
-  movement_time = random(10,40);
-  random_delay = random(min_freeze, max_freeze);
-  x_new_position = random(min_x+minimal_movement, max_x-minimal_movement);
-  y_new_position = random(min_y+minimal_movement, max_y-minimal_movement);
-  
-  if( (y_new_position > y_old_position) && (abs(y_new_position - y_old_position) < 5 )) {
-    y_new_position = y_new_position + minimal_movement;
-  }  else if ( (y_new_position < y_old_position) && (abs(y_new_position - y_old_position) < 5 )) {
-    y_new_position = y_new_position - minimal_movement;
-  }
-  
-  if( (x_new_position > x_old_position) && (abs(x_new_position - x_old_position) < 5 )) {
-    x_new_position = x_new_position + minimal_movement;
-  }  else if ( (x_new_position < x_old_position) && (abs(x_new_position - x_old_position) < 5 )) {
-    x_new_position = x_new_position - minimal_movement;
-  }
-  
-  x_speed = (x_new_position - x_old_position)/movement_time;
-  y_speed = (y_new_position - y_old_position)/movement_time;  
-  for (pos = 0; pos < movement_time; pos += 1) { 
-      x_position = x_position + x_speed;
-      y_position = y_position + y_speed;
-      x_servo.write(x_position);  
-      y_servo.write(y_position);                    
-    delay(10); 
-  }
-  x_old_position = x_new_position;
-  y_old_position = y_new_position;
-  delay(random_delay);
+  if ( debug ) {
 
+    x_servo.write( 90 );
+    y_servo.write( 0 );
+
+  } else {
+
+    x_servo.attach(6);  // attaches the x servo on pin 6 to the servo object
+    y_servo.attach(9);  // attaches the y servo on pin 9 to the servo object
+
+    //Variables
+    rand_delay = random(min_freeze, (max_freeze + 1));
+
+    x_new_pos = random(min_x, (max_x + 1));
+    y_new_pos = random(min_y, (max_y + 1));
+
+    //Functionality - Check for min-/max-movment
+
+    //Check Y
+    //If new y is inside min_movment zone
+    if ( y_new_pos > (y_old_pos - min_movement) && y_new_pos < (y_old_pos + min_movement) ) {
+
+      //If new y is smaller than min-movement zone
+      if ( y_new_pos > (y_old_pos - min_movement) ) {
+
+        y_new_pos = y_old_pos - min_movement;
+        if ( y_new_pos < min_y ) {
+          y_new_pos = min_y;
+        }
+
+        //Else new y is equal to or larger than old_pos
+      } else {
+
+        y_new_pos = y_old_pos + min_movement;
+        if ( y_new_pos > max_y ) {
+          y_new_pos = max_y;
+        }
+
+      }
+    }
+
+    //Check X
+    //If new x is inside min_movment zone
+    if ( x_new_pos > (x_old_pos - min_movement) && x_new_pos < (x_old_pos + min_movement) ) {
+
+      //If new x is smaller than min-movement zone
+      if ( x_new_pos > (x_old_pos - min_movement) ) {
+
+        x_new_pos = x_old_pos - min_movement;
+        if ( x_new_pos < min_x ) {
+          x_new_pos = min_x;
+        }
+
+        //Else new x is equal to or larger than old_pos
+      } else {
+
+        x_new_pos = x_old_pos + min_movement;
+        if ( x_new_pos > max_x ) {
+          x_new_pos = max_x;
+        }
+
+      }
+    }
+
+    //Functionality - Move servos to new position with random speed
+    x_pos = x_old_pos;
+    y_pos = y_old_pos;
+    movement_delay = movement_time / movement_steps;
+
+    x_speed = (x_new_pos - x_old_pos) / movement_steps;
+    y_speed = (y_new_pos - y_old_pos) / movement_steps;
+
+    for (int i = 0; i < movement_steps; i++) {
+
+      x_pos = x_pos + x_speed;
+      y_pos = y_pos + y_speed;
+
+      x_servo.write( x_pos );
+      y_servo.write( y_pos );
+
+      delay( movement_delay );
+    }
+
+    //Save for next loop
+    x_old_pos = x_new_pos;
+    y_old_pos = y_new_pos;
+
+    //Detach to remove buzzing sound from the servo
+    x_servo.detach();
+    y_servo.detach();
+
+    //Delay until next loop
+    delay( rand_delay );
+
+  }
 }
